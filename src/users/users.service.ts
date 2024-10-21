@@ -19,12 +19,14 @@ import { Role } from '../roles/domain/role';
 import { Status } from '../statuses/domain/status';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserMobileDto } from './dto/create-user-mobile.dto';
+import { SmsService } from '../sms/sms.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepository: UserRepository,
     private readonly filesService: FilesService,
+    private readonly smsService: SmsService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -126,7 +128,7 @@ export class UsersService {
       status: status,
       provider: createUserDto.provider ?? AuthProvidersEnum.email,
       socialId: createUserDto.socialId,
-      mobileNumber: "mobileNumber"
+      mobileNumber: null
     });
   }
   async createUserMobile(createUserMobileDto: CreateUserMobileDto): Promise<User> {
@@ -136,8 +138,8 @@ export class UsersService {
     let password: string | undefined = undefined;
 
    
-      const salt = await bcrypt.genSalt();
-      // password = await bcrypt.hash(createUserDto.password, salt);
+    const salt = await bcrypt.genSalt();
+    // password = await bcrypt.hash(createUserDto.password, salt);
  
 
     let mobileNumber: string | null = null;
@@ -167,18 +169,28 @@ export class UsersService {
 
 
 
-    return this.usersRepository.create({
+    
+    const user = await this.usersRepository.create({
       mobileNumber: mobileNumber,
-      email: null,           // Default value for email (can be null)
-      firstName: null,       // First name can be added after OTP verification
-      lastName: null,        // Last name can be added after OTP verification
-      password: undefined,   // Optional password (for OTP flow)
-      provider: 'mobile',    // The provider is 'mobile' since the user is registering with a mobile number
-      socialId: null,        // Social ID is optional, default to null
-      role: undefined,       // You can assign a default role if needed
-      status: undefined,     // You can set a default status (e.g., inactive or pending)
-      photo: undefined       // Optional field
+      email: null,
+      firstName: null,
+      lastName: null,
+      password: undefined,
+      provider: 'mobile',
+      socialId: null,
+      role: undefined,
+      status: undefined,
+      photo: undefined
     });
+
+    if (typeof mobileNumber === 'string' && mobileNumber.trim() !== '') {
+      // Send welcome SMS after successful registration
+      await this.smsService.sendSMS("+917017368626", 'Welcome! Your registration is successful.');
+    } else {
+      console.warn('Mobile number is invalid or empty. SMS not sent.');
+    }
+
+    return user;
   }
 
   findManyWithPagination({
