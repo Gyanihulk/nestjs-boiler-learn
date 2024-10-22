@@ -29,6 +29,9 @@ import { SessionService } from '../session/session.service';
 import { StatusEnum } from '../statuses/statuses.enum';
 import { User } from '../users/domain/user';
 import { AuthRegisterMobileDto } from './dto/auth-register-mobile.dto';
+import { AuthVerifyOtpDto } from './dto/auth-verify-otp.dto';
+import { OtpService } from './otp/otp.service';
+import { SmsService } from '../sms/sms.service';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +41,9 @@ export class AuthService {
     private sessionService: SessionService,
     private mailService: MailService,
     private configService: ConfigService<AllConfigType>,
+    private readonly otpService: OtpService,
+    private readonly smsService: SmsService,
+    
   ) {}
 
   async validateLogin(loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
@@ -593,19 +599,80 @@ export class AuthService {
   }
 
   async registerByMobile(dto: AuthRegisterMobileDto): Promise<void> {
-    const user = await this.usersService.createUserMobile({
+    
+    const {mobileNumber}=dto;
+    const userData = {
       mobileNumber: dto.mobileNumber,
       role: { id: RoleEnum.user },
       status: { id: StatusEnum.inactive },
-    });
-    // Generate hash or OTP logic for confirming mobile number
-  // const hash = await this.jwtService.signAsync(
-  //   { confirmMobileUserId: user.id },
-  //   {
-  //     secret: this.configService.getOrThrow('auth.confirmMobileSecret', { infer: true }),
-  //     expiresIn: this.configService.getOrThrow('auth.confirmMobileExpires', { infer: true }),
-  //   }
-  // );
-  }
+    };
+ 
+    let user = await this.usersService.findByMobile(
+      mobileNumber,
+    );
+  console.log(user)
   
+  if(!user || user ==null){
+
+    const user = await this.usersService.createUserMobile(userData);
+  }
+
+
+  if (typeof mobileNumber === 'string' && mobileNumber.trim() !== '' && user!=null) {
+    const otpDoc = await this.otpService.saveOtp(user);
+    await this.smsService.sendSMS(
+      process.env.NODE_ENV=="development"?'+917017368626':mobileNumber,
+      `Your OTP is :${otpDoc.otp} ${process.env.OTP_VERIFICATION_CODE}`,
+    );
+  } else {
+    console.warn('Mobile number is invalid or empty. SMS not sent.');
+  }
+    // Generate hash or OTP logic for confirming mobile number
+    // const hash = await this.jwtService.signAsync(
+    //   { confirmMobileUserId: user.id },
+    //   {
+    //     secret: this.configService.getOrThrow('auth.confirmMobileSecret', { infer: true }),
+    //     expiresIn: this.configService.getOrThrow('auth.confirmMobileExpires', { infer: true }),
+    //   }
+    // );
+  }
+  async verifyOtp(verifyOtpDto: AuthVerifyOtpDto): Promise<LoginResponseDto> {
+    const { mobileNumber, otp } = verifyOtpDto;
+    await this.otpService.verifyOtp(mobileNumber, otp);
+
+    const user = await this.usersService.findByMobile(
+      mobileNumber
+    );
+
+    const hash = crypto
+      .createHash('sha256')
+      .update(randomStringGenerator())
+      .digest('hex');
+    if (!user) {
+      throw new UnprocessableEntityException({
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        errors: {
+          mobile: 'mobileNotExists',
+        },
+      });
+    }
+    const session = await this.sessionService.create({
+      user,
+      hash,
+    });
+
+    const { token, refreshToken, tokenExpires } = await this.getTokensData({
+      id: user.id,
+      role: user.role,
+      sessionId: session.id,
+      hash,
+    });
+
+    return {
+      refreshToken,
+      token,
+      tokenExpires,
+      user,
+    };
+  }
 }

@@ -9,6 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { UserMapper } from '../mappers/user.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
+import { CreateUserMobileDto } from '../../../../dto/create-user-mobile.dto';
 
 @Injectable()
 export class UsersDocumentRepository implements UserRepository {
@@ -23,17 +24,13 @@ export class UsersDocumentRepository implements UserRepository {
     const userObject = await createdUser.save();
     return UserMapper.toDomain(userObject);
   }
-  // New method to create a user with mobile number and OTP hash
-  async createWithMobileNumber(
-    mobileNumber: string,
-    otpHash: string,
-  ): Promise<User> {
+
+  async createWithMobileNumber(data: CreateUserMobileDto): Promise<User> {
     const persistenceModel = {
-      mobileNumber,
-      otpHash, // Storing the OTP hash
-      status: 'pending', // Mark status as pending until OTP verification
-      provider: 'mobile', // Assuming mobile as the provider
+      ...data,
+      provider: 'mobile',
     };
+
     const createdUser = new this.usersModel(persistenceModel);
     const userObject = await createdUser.save();
     return UserMapper.toDomain(userObject);
@@ -86,6 +83,14 @@ export class UsersDocumentRepository implements UserRepository {
     if (!email) return null;
 
     const userObject = await this.usersModel.findOne({ email });
+    return userObject ? UserMapper.toDomain(userObject) : null;
+  }
+  async findByMobile(mobileNumber: User['mobileNumber']): Promise<NullableType<User>> {
+   
+    if (!mobileNumber) return null;
+
+    const userObject = await this.usersModel.findOne({ mobileNumber }).exec();
+
     return userObject ? UserMapper.toDomain(userObject) : null;
   }
 

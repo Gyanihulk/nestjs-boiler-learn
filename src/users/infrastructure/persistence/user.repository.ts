@@ -2,6 +2,7 @@ import { DeepPartial } from '../../../utils/types/deep-partial.type';
 import { NullableType } from '../../../utils/types/nullable.type';
 import { IPaginationOptions } from '../../../utils/types/pagination-options';
 import { User } from '../../domain/user';
+import { CreateUserMobileDto } from '../../dto/create-user-mobile.dto';
 
 import { FilterUserDto, SortUserDto } from '../../dto/query-user.dto';
 
@@ -38,12 +39,7 @@ export abstract class UserRepository {
 
   abstract remove(id: User['id']): Promise<void>;
 
-
-   // Method to create a user with mobile number and OTP hash
-   abstract createWithMobileNumber(
-    mobileNumber: string,
-    otpHash: string  // OTP hash for validation
-  ): Promise<User>;
-
-
+  // Method to create a user with mobile number and OTP hash
+  abstract createWithMobileNumber(data: CreateUserMobileDto): Promise<User>;
+  abstract findByMobile(mobileNumber: User['mobileNumber']): Promise<NullableType<User>>;
 }

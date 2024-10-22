@@ -12,7 +12,7 @@ import {
   SerializeOptions,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthForgotPasswordDto } from './dto/auth-forgot-password.dto';
 import { AuthConfirmEmailDto } from './dto/auth-confirm-email.dto';
@@ -25,6 +25,8 @@ import { NullableType } from '../utils/types/nullable.type';
 import { User } from '../users/domain/user';
 import { RefreshResponseDto } from './dto/refresh-response.dto';
 import { AuthRegisterMobileDto } from './dto/auth-register-mobile.dto';
+import { OtpService } from './otp/otp.service';
+import { AuthVerifyOtpDto } from './dto/auth-verify-otp.dto';
 
 @ApiTags('Auth')
 @Controller({
@@ -32,7 +34,10 @@ import { AuthRegisterMobileDto } from './dto/auth-register-mobile.dto';
   version: '1',
 })
 export class AuthController {
-  constructor(private readonly service: AuthService) {}
+  constructor(
+    private readonly service: AuthService,
+    
+  ) {}
 
   @SerializeOptions({
     groups: ['me'],
@@ -44,6 +49,33 @@ export class AuthController {
   ): Promise<void> {
     return this.service.registerByMobile(registerMobileDto);
   }
+
+  @Post('mobile/otp/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'OTP verified successfully',
+    schema: {
+      example: { message: 'OTP verified successfully' },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid OTP or Mobile Number',
+    schema: {
+      example: {
+        statusCode: 422,
+        message: 'Invalid OTP or Mobile Number',
+      },
+    },
+  })
+
+
+  async verifyOtp(@Body() verifyOtpDto: AuthVerifyOtpDto): Promise<LoginResponseDto> {
+    return this.service.verifyOtp(verifyOtpDto);
+
+
+    // return { message: 'OTP verified successfully' };
+  }
+
 
   @Post('email/login')
   @ApiOkResponse({

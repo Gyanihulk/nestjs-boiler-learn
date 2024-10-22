@@ -9,7 +9,7 @@ export class CreateUserMobileDto {
   @IsNotEmpty()
   @IsString()
   @Length(10, 15)  
-  mobileNumber: string;
+  mobileNumber: string |null;
 
 
   @ApiPropertyOptional({ type: RoleDto })

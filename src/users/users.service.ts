@@ -20,6 +20,8 @@ import { Status } from '../statuses/domain/status';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserMobileDto } from './dto/create-user-mobile.dto';
 import { SmsService } from '../sms/sms.service';
+import { OtpService } from '../auth/otp/otp.service';
+
 
 @Injectable()
 export class UsersService {
@@ -27,6 +29,7 @@ export class UsersService {
     private readonly usersRepository: UserRepository,
     private readonly filesService: FilesService,
     private readonly smsService: SmsService,
+    private readonly otpService: OtpService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -128,49 +131,73 @@ export class UsersService {
       status: status,
       provider: createUserDto.provider ?? AuthProvidersEnum.email,
       socialId: createUserDto.socialId,
-      mobileNumber: null
+      mobileNumber: null,
     });
   }
-  async createUserMobile(createUserMobileDto: CreateUserMobileDto): Promise<User> {
+  async createUserMobile(
+    createUserMobileDto: CreateUserMobileDto,
+  ): Promise<User> {
     // Do not remove comment below.
     // <creating-property />
-
-    let password: string | undefined = undefined;
-
-   
-    const salt = await bcrypt.genSalt();
-    // password = await bcrypt.hash(createUserDto.password, salt);
- 
 
     let mobileNumber: string | null = null;
 
     if (createUserMobileDto.mobileNumber) {
-      const userObject = await this.usersRepository.findByEmail(
+      const userObject = await this.usersRepository.findByMobile(
         createUserMobileDto.mobileNumber,
       );
       if (userObject) {
         throw new UnprocessableEntityException({
           status: HttpStatus.UNPROCESSABLE_ENTITY,
           errors: {
-            email: 'emailAlreadyExists',
+            email: 'mobileNumberAlreadyExists',
           },
         });
       }
       mobileNumber = createUserMobileDto.mobileNumber;
     }
 
-    let photo: FileType | null | undefined = undefined;
-
-
     let role: Role | undefined = undefined;
 
+    if (createUserMobileDto.role?.id) {
+      const roleObject = Object.values(RoleEnum)
+        .map(String)
+        .includes(String(createUserMobileDto.role.id));
+      if (!roleObject) {
+        throw new UnprocessableEntityException({
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            role: 'roleNotExists',
+          },
+        });
+      }
+
+      role = {
+        id: createUserMobileDto.role.id,
+      };
+    }
 
     let status: Status | undefined = undefined;
 
+    if (createUserMobileDto.status?.id) {
+      const statusObject = Object.values(StatusEnum)
+        .map(String)
+        .includes(String(createUserMobileDto.status.id));
+      if (!statusObject) {
+        throw new UnprocessableEntityException({
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          errors: {
+            status: 'statusNotExists',
+          },
+        });
+      }
 
+      status = {
+        id: createUserMobileDto.status.id,
+      };
+    }
 
-    
-    const user = await this.usersRepository.create({
+    const userData = {
       mobileNumber: mobileNumber,
       email: null,
       firstName: null,
@@ -178,17 +205,14 @@ export class UsersService {
       password: undefined,
       provider: 'mobile',
       socialId: null,
-      role: undefined,
-      status: undefined,
-      photo: undefined
-    });
+      role: role,
+      status: status,
+      photo: undefined,
+    };
 
-    if (typeof mobileNumber === 'string' && mobileNumber.trim() !== '') {
-      // Send welcome SMS after successful registration
-      await this.smsService.sendSMS("+917017368626", 'Welcome! Your registration is successful.');
-    } else {
-      console.warn('Mobile number is invalid or empty. SMS not sent.');
-    }
+    const user = await this.usersRepository.createWithMobileNumber(userData);
+
+    
 
     return user;
   }
@@ -220,7 +244,11 @@ export class UsersService {
   findByEmail(email: User['email']): Promise<NullableType<User>> {
     return this.usersRepository.findByEmail(email);
   }
+  async findByMobile(mobileNumber: User['mobileNumber']): Promise<NullableType<User>> {
+    const user=await this.usersRepository.findByMobile(mobileNumber);
 
+    return user
+  }
   findBySocialIdAndProvider({
     socialId,
     provider,

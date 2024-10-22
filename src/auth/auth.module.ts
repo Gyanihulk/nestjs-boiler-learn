@@ -9,6 +9,8 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { MailModule } from '../mail/mail.module';
 import { SessionModule } from '../session/session.module';
 import { UsersModule } from '../users/users.module';
+import { OtpModule } from './otp/otp.module';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { UsersModule } from '../users/users.module';
     PassportModule,
     MailModule,
     JwtModule.register({}),
+    OtpModule,
+    SmsModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy, AnonymousStrategy],

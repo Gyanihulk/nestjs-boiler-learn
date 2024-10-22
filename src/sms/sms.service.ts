@@ -12,11 +12,16 @@ export class SmsService {
 
   async sendSMS(to: string , message: string): Promise<void> {
     try {
-      await this.client.messages.create({
+      const response=await this.client.messages.create({
         body: message,
         from: process.env.TWILIO_PHONE_NUMBER, 
         to: to,
       });
+      console.log("sms send",{
+        body: message,
+        from: process.env.TWILIO_PHONE_NUMBER, 
+        to: to,
+      })
     } catch (error) {
       console.error('Error sending SMS:', error);
       throw new Error('Failed to send SMS');

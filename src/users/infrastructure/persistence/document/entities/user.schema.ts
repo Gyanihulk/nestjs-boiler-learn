@@ -28,7 +28,7 @@ export class UserSchemaClass extends EntityDocumentHelper {
     unique: true,
     sparse: true,  
   })
-  phone: string | null;
+  mobileNumber: string | null;
 
 
   @Prop()
